@@ -3,7 +3,7 @@ use std::{
     path::Path,
 };
 
-use image::DynamicImage;
+use image::{DynamicImage, ImageFormat};
 use reqwest::blocking::get;
 use thiserror::Error;
 use url::Url;
@@ -26,20 +26,35 @@ pub enum LoaderError {
 
     #[error("No input provided (URL or path expected)")]
     NoInput,
+
+    #[error("Unsupported extension: {0}")]
+    UnsupportedExtension(String),
 }
 
 fn load_from_file(path: &String) -> Result<DynamicImage, LoaderError> {
     Ok(image::open(path)?)
 }
 
-pub fn get_image_extension(filename: &String) -> Result<&str, Box<dyn std::error::Error>> {
-    let ext = Path::new(filename)
-        .extension()
-        .ok_or("No file extension found")?
-        .to_str()
-        .ok_or("Extension is not valid UTF-8")?;
+pub fn extract_final_file_format(args: &Args) -> Result<ImageFormat, LoaderError> {
+    let ext = match args.output {
+        Some(ref output) => get_image_extension(output)?,
+        None => match (&args.url, &args.path) {
+            (Some(url), None) => get_image_extension(url)?,
+            (None, Some(path)) => get_image_extension(path)?,
+            _ => return Err(LoaderError::NoInput),
+        },
+    };
 
-    Ok(ext)
+    ImageFormat::from_extension(ext)
+        .ok_or_else(|| LoaderError::UnsupportedExtension(ext.to_string()))
+}
+
+pub fn get_image_extension(filename: &String) -> Result<&str, LoaderError> {
+    Ok(Path::new(filename)
+        .extension()
+        .ok_or_else(|| LoaderError::UnsupportedExtension(filename.clone()))?
+        .to_str()
+        .ok_or_else(|| LoaderError::UnsupportedExtension(filename.clone()))?)
 }
 
 fn load_image_from_url(url: &String) -> Result<DynamicImage, LoaderError> {
