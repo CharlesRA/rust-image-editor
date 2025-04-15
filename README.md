@@ -47,7 +47,7 @@ cargo install image-editor
 Or clone and build manually:
 
 ```bash
-git clone https://github.com/CharlesRA/image-editor.git
+git clone https://github.com/CharlesRA/rust-image-editor.git
 cd image-editor
 cargo build --release
 ```
